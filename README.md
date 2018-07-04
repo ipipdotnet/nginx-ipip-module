@@ -61,6 +61,7 @@ Nginx ipip module support datx format
     }
 
 # Variables
+#### Buying a paid database gives you more data
     $ipip_continent_code
     $ipip_country_name
     $ipip_country_code
