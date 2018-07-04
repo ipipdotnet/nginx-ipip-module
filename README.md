@@ -3,6 +3,8 @@ Nginx ipip module support datx format
 # IPIP.net
     Free offline database download https://www.ipip.net/free_download/
     Advanced paid version
+    [简书](http://jianshu.com)
+    [百度](http://baidu.com)
     [English](https://en.ipip.net/product/ip.html) [中文](https://www.ipip.net/product/ip.html)
 
 # Installing
