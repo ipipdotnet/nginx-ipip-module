@@ -1,7 +1,20 @@
 # nginx-ipip-module
 Nginx ipip module support datx format 
 
-# variables
+# Installing
+#### download nginx
+    wget http://nginx.org/download/nginx-VERSION.tar.gz
+    tar zxvf nginx-VERSION.tar.gz
+#### download nginx-ipip-module    
+    git clone https://github.com/ipipdotnet/nginx-ipip-module
+
+#### compile
+    cd nginx-VERSION
+    ./configure --with-compat --add-dynamic-module=../nginx-ipip-module
+    make modules .
+    make install
+
+# Variables
     $ipip_continent_code
     $ipip_country_name
     $ipip_country_code
