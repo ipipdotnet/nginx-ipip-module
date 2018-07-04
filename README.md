@@ -14,6 +14,42 @@ Nginx ipip module support datx format
     make modules .
     make install
 
+# Example
+    http {
+
+        ipip_db /root/ipip.datx;
+
+        server {
+            listen       80;
+            server_name  localhost;
+
+            ipip_parse_ip $http_addr;
+
+            location / {
+                if ($ipip_country_code = HK) {
+                    return 403;
+                }
+
+                add_header ip $http_addr;
+                add_header country_code $ipip_country_code;
+                add_header country $ipip_country_name;
+                add_header province $ipip_region_name;
+                add_header city $ipip_city_name;
+                add_header owner $ipip_owner_domain;
+                add_header isp $ipip_isp_domain;
+                add_header latitude $ipip_latitude;
+                add_header longitude $ipip_longitude;
+                add_header timezone $ipip_timezone;
+                add_header utc_offset $ipip_utc_offset;
+                add_header china_admin_code  $ipip_china_admin_code;
+                add_header idc $ipip_idc ;
+            
+                root   html;
+                index  index.html index.htm;
+            }
+        }    
+    }
+
 # Variables
     $ipip_continent_code
     $ipip_country_name
