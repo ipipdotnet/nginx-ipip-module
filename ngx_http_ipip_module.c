@@ -278,21 +278,16 @@ static ngx_int_t ngx_ipip_set_variable(ngx_http_request_t *r,
 #define NGX_IPIP_OWNER_DOMAIN_CODE     3
 #define NGX_IPIP_ISP_DOMAIN_CODE       4
 #define NGX_IPIP_LATITUDE_CODE         5
-
 #define NGX_IPIP_LONGITUDE_CODE        6
 #define NGX_IPIP_TIMEZONE_CODE         7
 #define NGX_IPIP_UTC_OFFSET_CODE       8
-
 #define NGX_IPIP_CHINA_ADMIN_CODE      9
 #define NGX_IPIP_IDD_CODE_CODE         10
-#define NGX_IPIP_COUNTRY_CODE_CODE      11
-#define NGX_IPIP_CONTINENT_CODE_CODE        12
-
-#define NGX_IPIP_IDC_CODE          13
-#define NGX_IPIP_BASE_STATION_CODE      14
+#define NGX_IPIP_COUNTRY_CODE_CODE     11
+#define NGX_IPIP_CONTINENT_CODE_CODE   12
+#define NGX_IPIP_IDC_CODE              13
+#define NGX_IPIP_BASE_STATION_CODE     14
 #define NGX_IPIP_ANYCAST_CODE          15
-
-
 
 static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_ipip_parse_ip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -336,7 +331,6 @@ static ngx_int_t ngx_http_ipip_base_station_variable(ngx_http_request_t *r,
 static ngx_int_t ngx_http_ipip_anycast_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 
-
 static void *ngx_http_ipip_create_conf(ngx_conf_t *cf);
 static void ngx_http_ipip_cleanup(void *data);
 /**
@@ -351,8 +345,6 @@ static ngx_command_t ngx_http_ipip_commands[] = {
       NGX_HTTP_MAIN_CONF_OFFSET, /* No offset. Only one context is supported. */
       0, /* No offset when storing the module configuration on struct. */
       NULL},
-
-
       { ngx_string("ipip_parse_ip"), /* directive */
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_ipip_parse_ip, /* configuration setup function */
@@ -554,7 +546,6 @@ ngx_http_ipip_timezone_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_TIMEZONE_CODE);
 }
-
 static ngx_int_t ngx_http_ipip_utc_offset_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_UTC_OFFSET_CODE);
@@ -567,7 +558,6 @@ static ngx_int_t ngx_http_ipip_idd_code_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_IDD_CODE_CODE);
 }
-
 static ngx_int_t ngx_http_ipip_country_code_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_COUNTRY_CODE_CODE);
@@ -609,18 +599,6 @@ ngx_http_ipip_add_variables(ngx_conf_t *cf)
     return NGX_OK;
 }
 
-/**
- * Configuration setup function that installs the content handler.
- *
- * @param cf
- *   Module configuration structure pointer.
- * @param cmd
- *   Module directives structure pointer.
- * @param conf
- *   Module configuration structure pointer.
- * @return string
- *   Status of the configuration setup.
- */
 static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t  *value;
@@ -642,13 +620,12 @@ static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 } /* ngx_http_ipip_db */
+
 static char *ngx_ipip_parse_ip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_ipip_add_parse_ip_variable(cf, cmd, NULL);
     return NGX_CONF_OK;
 } /* ngx_ipip_parse_ip */
-
-
 
 static char *ngx_ipip_add_parse_ip_variable(ngx_conf_t *cf, ngx_command_t *dummy, 
     void *handler_conf) {
