@@ -22,7 +22,7 @@ Nginx ipip module support datx format
     http {
 
         # Specify the data file path
-        ipip_db /root/ipip.datx; 
+        ipip_db /root/ipip.datx 60m; # 60 minute auto reload db file
 
         server {
             listen       80;
