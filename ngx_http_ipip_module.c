@@ -42,6 +42,16 @@ struct DBContext {
     uint *flag;
     uint offset;
 } ;
+typedef struct {
+    ngx_str_t  db_name;
+    struct DBContext   *db_ctx;
+    ngx_http_complex_value_t ip_source;
+
+    time_t                   last_check;
+    time_t                   last_change;
+    time_t                   check_interval;
+} ngx_http_ipip_conf_t;
+
 char *strtok_r_2(char *str, char const *delims, char **context) {
     char *p = NULL, *ret = NULL;
 
@@ -66,14 +76,10 @@ char *strtok_r_2(char *str, char const *delims, char **context) {
 }
 
 static struct DBContext* init_db(const char* ipdb, int* error_code, ngx_conf_t *cf);
+static ngx_int_t ngx_http_ipip_reload_db(ngx_http_ipip_conf_t  *icf);
 static int destroy(struct DBContext* ctx);
 static ngx_int_t find_result_by_ip(const struct DBContext* ctx,const char *ip, char *result);
 static ngx_int_t ngx_http_ipip_addr_str(ngx_http_request_t *r, char* ipstr);
-
-typedef struct {
-    struct DBContext   *db_ctx;
-    ngx_http_complex_value_t ip_source;
-} ngx_http_ipip_conf_t;
 
 int destroy(struct DBContext* ctx) {
     if (ctx->flag != NULL) {
@@ -121,13 +127,13 @@ struct DBContext* init_db(const char* ipdb, int* error_code, ngx_conf_t *cf) {
         free(ctx);
         return NULL;
     }
-    ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "total read %d bytes data", read_count);
+    //ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "total read %d bytes data", read_count);
     
     fclose(file);
     
     uint indexLength = B2IU(ctx->data);
 
-    ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "index len = %d", indexLength);
+    //ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "index len = %d", indexLength);
     
     ctx->index = (byte *) malloc(indexLength * sizeof(byte));
     if (ctx->index == NULL) {
@@ -151,7 +157,7 @@ struct DBContext* init_db(const char* ipdb, int* error_code, ngx_conf_t *cf) {
     if (copy_bytes > flag_bytes) {
         copy_bytes = flag_bytes;
     }
-    ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "copy %d bytes from index to flag", copy_bytes);
+    //ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0, "copy %d bytes from index to flag", copy_bytes);
     ngx_memcpy(ctx->flag, ctx->index, copy_bytes);
     
     return ctx;
@@ -247,6 +253,8 @@ static ngx_int_t ngx_ipip_set_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, int index) {
     ngx_http_ipip_conf_t  *icf = ngx_http_get_module_main_conf(r, ngx_http_ipip_module);
 
+    ngx_http_ipip_reload_db(icf);
+
     char result[256] = {"\0"};
     size_t val_len;
 
@@ -340,7 +348,7 @@ static void ngx_http_ipip_cleanup(void *data);
 static ngx_command_t ngx_http_ipip_commands[] = {
 
     { ngx_string("ipip_db"), /* directive */
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1, /* location context and takes*/
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE2, /* location context and takes*/
       ngx_http_ipip_db, /* configuration setup function */
       NGX_HTTP_MAIN_CONF_OFFSET, /* No offset. Only one context is supported. */
       0, /* No offset when storing the module configuration on struct. */
@@ -603,10 +611,39 @@ static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t  *value;
     ngx_http_ipip_conf_t *icf = conf;
+    time_t interval;
 
     value = cf->args->elts;
     int error_code = 0;
     icf->db_ctx = init_db((char *) value[1].data, &error_code, cf);
+
+    icf->db_name.data = ngx_pnalloc(cf->pool, value[1].len+1);
+    icf->db_name.len = value[1].len;
+    ngx_memcpy(icf->db_name.data, value[1].data, icf->db_name.len);
+    icf->db_name.data[icf->db_name.len] = '\0';
+
+    struct stat attr;
+    int ret = stat((char *)(icf->db_name.data), &attr);
+    if (ret != 0) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "stat db file failed for : %s", (icf->db_name.data));
+        return NGX_CONF_ERROR;
+    }
+
+    icf->last_check = icf->last_change = ngx_time();
+
+    interval = ngx_parse_time(&value[2], 1);
+
+    ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0,
+                           "check interval = %d second", (ngx_int_t)interval);
+
+    if (interval == (time_t) NGX_ERROR) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "invalid interval for auto_reload \"%V\"",
+                           value[1]);
+        return NGX_CONF_ERROR;
+    }
+    icf->check_interval = interval;
 
     if (icf->db_ctx != NULL) {
         ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0,
@@ -620,6 +657,37 @@ static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 } /* ngx_http_ipip_db */
+
+static ngx_int_t ngx_http_ipip_reload_db(ngx_http_ipip_conf_t  *icf) {
+
+    struct DBContext *tmp_ctx;
+    struct stat attr;
+    int error_code = 0;
+
+    ngx_time_update();
+    if (icf->check_interval > 0
+            && icf->last_check + icf->check_interval <= ngx_time()) {
+        icf->last_check = ngx_time();
+        
+        if (stat((char *)(icf->db_name.data), &attr) != 0) {
+            return NGX_ERROR;
+        }
+
+        if (attr.st_mtime > icf->last_change) {
+            tmp_ctx = init_db((char *) (icf->db_name.data), &error_code, NULL);
+
+            if (tmp_ctx == NULL) {
+                return NGX_ERROR;
+            }
+
+            icf->last_change = attr.st_mtime;
+
+            destroy(icf->db_ctx);
+            icf->db_ctx = tmp_ctx;
+        }
+    } 
+    return NGX_OK;
+}
 
 static char *ngx_ipip_parse_ip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
