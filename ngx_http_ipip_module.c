@@ -280,6 +280,7 @@ static ngx_int_t ngx_ipip_set_variable(ngx_http_request_t *r,
     return NGX_OK;
 }
 
+// Keep this order please
 #define NGX_IPIP_COUNTRY_NAME_CODE     0
 #define NGX_IPIP_REGION_NAME_COEE      1
 #define NGX_IPIP_CITY_NAME_CODE        2
@@ -295,7 +296,11 @@ static ngx_int_t ngx_ipip_set_variable(ngx_http_request_t *r,
 #define NGX_IPIP_CONTINENT_CODE_CODE   12
 #define NGX_IPIP_IDC_CODE              13
 #define NGX_IPIP_BASE_STATION_CODE     14
-#define NGX_IPIP_ANYCAST_CODE          15
+#define NGX_IPIP_COUNTRY_CODE3         15
+#define NGX_IPIP_EUROPEAN_UNION        16
+#define NGX_IPIP_CURRENCY_CODE         17
+#define NGX_IPIP_CURRENCY_NAME         18
+#define NGX_IPIP_ANYCAST_CODE          19
 
 static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_ipip_parse_ip(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -336,6 +341,19 @@ static ngx_int_t ngx_http_ipip_idc_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 static ngx_int_t ngx_http_ipip_base_station_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_http_ipip_country_code3_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+
+static ngx_int_t ngx_http_ipip_european_union_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_http_ipip_currency_code_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_http_ipip_currency_name_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data);
+
+
+
+
 static ngx_int_t ngx_http_ipip_anycast_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data);
 
@@ -454,6 +472,22 @@ static ngx_http_variable_t  ngx_http_ipip_vars[] = {
 
       { ngx_string("ipip_base_station"), NULL,
       ngx_http_ipip_base_station_variable,
+      0, 0, 0 },
+
+      { ngx_string("ipip_country_code3"), NULL,
+      ngx_http_ipip_country_code3_variable,
+      0, 0, 0 },
+
+      { ngx_string("ipip_european_union"), NULL,
+      ngx_http_ipip_european_union_variable,
+      0, 0, 0 },
+
+      { ngx_string("ipip_currency_code"), NULL,
+      ngx_http_ipip_currency_code_variable,
+      0, 0, 0 },
+
+      { ngx_string("ipip_currency_name"), NULL,
+      ngx_http_ipip_currency_name_variable,
       0, 0, 0 },
 
       { ngx_string("ipip_anycast"), NULL,
@@ -582,6 +616,22 @@ static ngx_int_t ngx_http_ipip_base_station_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_BASE_STATION_CODE);
 }
+static ngx_int_t ngx_http_ipip_country_code3_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data) {
+    return ngx_ipip_set_variable(r, v, NGX_IPIP_COUNTRY_CODE3);
+}
+static ngx_int_t ngx_http_ipip_european_union_variable(ngx_http_request_t *r, 
+    ngx_http_variable_value_t *v, uintptr_t data) {
+    return ngx_ipip_set_variable(r, v, NGX_IPIP_EUROPEAN_UNION);
+}
+static ngx_int_t ngx_http_ipip_currency_code_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data) {
+    return ngx_ipip_set_variable(r, v, NGX_IPIP_CURRENCY_CODE);
+}
+static ngx_int_t ngx_http_ipip_currency_name_variable(ngx_http_request_t *r,
+    ngx_http_variable_value_t *v, uintptr_t data) {
+    return ngx_ipip_set_variable(r, v, NGX_IPIP_CURRENCY_NAME);   
+}
 static ngx_int_t ngx_http_ipip_anycast_variable(ngx_http_request_t *r,
     ngx_http_variable_value_t *v, uintptr_t data) {
     return ngx_ipip_set_variable(r, v, NGX_IPIP_ANYCAST_CODE);
@@ -620,12 +670,25 @@ static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     icf->db_name.data = ngx_pnalloc(cf->pool, value[1].len+1);
     icf->db_name.len = value[1].len;
     ngx_memcpy(icf->db_name.data, value[1].data, icf->db_name.len);
+    icf->db_name.data[icf->db_name.len] = '\0';
+
+    struct stat attr;
+    int ret = stat((char *)(icf->db_name.data), &attr);
+    if (ret != 0) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "stat db file failed for : %s", (icf->db_name.data));
+        return NGX_CONF_ERROR;
+    }
+
+
+   // ngx_time_init();
 
     icf->last_check = icf->last_change = ngx_time();
+
     interval = ngx_parse_time(&value[2], 1);
 
     ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0,
-                           "check interval = %d", (ngx_int_t)interval);
+                           "check interval = %d second", (ngx_int_t)interval);
 
     if (interval == (time_t) NGX_ERROR) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -651,20 +714,32 @@ static char *ngx_http_ipip_db(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 static ngx_int_t ngx_http_ipip_reload_db(ngx_http_ipip_conf_t  *icf) {
 
     struct DBContext *tmp_ctx;
-    struct stat  attr;
+    struct stat attr;
     int error_code = 0;
 
+    ngx_time_update();
     if (icf->check_interval > 0
             && icf->last_check + icf->check_interval <= ngx_time()) {
         icf->last_check = ngx_time();
-        stat((char *) icf->db_name.data, &attr);
+        
+        /*int fd = ngx_open_file((char *)(icf->db_name.data), NGX_FILE_RDONLY, NGX_FILE_OPEN, 0);
+        if (fd < 0) {
+            fprintf(stderr, "open file failed for : %s\n", strerror(errno));
+        }*/
+        if (stat((char *)(icf->db_name.data), &attr) != 0) {
+            return NGX_ERROR;
+        }
+
+        //fprintf(stderr, "last change = %u, [%s] file mtime = %lu\n", (unsigned)(icf->last_change), 
+        //    (char *) (icf->db_name.data), (unsigned long)attr.st_mtime);
 
         if (attr.st_mtime > icf->last_change) {
             //destroy(icf->db_ctx);
             //icf->db_ctx = NULL;
-            tmp_ctx = init_db((char *) icf->db_name.data, &error_code, NULL);
+            tmp_ctx = init_db((char *) (icf->db_name.data), &error_code, NULL);
 
             if (tmp_ctx == NULL) {
+                //fprintf(stderr, "init db failed\n");
                 //ngx_conf_log_error(NGX_LOG_NOTICE, ncf, 0,
                 //               "ipip open db = %s failed, error code = %d",
                 //               (char *) value[1].data, error_code);
