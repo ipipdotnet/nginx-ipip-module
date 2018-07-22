@@ -22,7 +22,7 @@ Nginx ipip module support datx format
     http {
 
         # Specify the data file path
-        ipip_db /root/ipip.datx; 
+        ipip_db /root/ipip.datx 60m; # 60 minute auto reload db file
 
         server {
             listen       80;
@@ -59,6 +59,10 @@ Nginx ipip module support datx format
             }
         }    
     }
+
+# Directive
+    ipip_db /path/db/file 60m; Specify the database file path and automatic update time interval
+    ipip_parse_ip $remote_addr; Specifies the variable that gets the IP
 
 # Variables
 #### Buying a paid database gives you more data
